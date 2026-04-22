@@ -264,7 +264,7 @@ st.markdown("""
     color: #9aa5be !important;
   }
 
-  /* Selectbox: white bg, dark text */
+  /* ── Selectbox: white bg, dark text ── */
   .stSelectbox > div > div,
   .stSelectbox [data-baseweb="select"] > div {
     background: #ffffff !important;
@@ -272,27 +272,49 @@ st.markdown("""
     border: 1px solid #dde3ee !important;
     border-radius: 8px !important;
   }
-
+  
   .stSelectbox [data-baseweb="select"] span,
   .stSelectbox [data-baseweb="select"] div {
     color: #1a2035 !important;
   }
-  /* Selectbox dropdown list */
-  [data-baseweb="popover"] ul,
-  [data-baseweb="menu"] {
+  
+  /* Dropdown portal list container */
+  [data-baseweb="popover"],
+  [data-baseweb="popover"] > div,
+  [data-baseweb="menu"],
+  ul[data-baseweb="menu"] {
     background: #ffffff !important;
     color: #1a2035 !important;
   }
-  [data-baseweb="menu"] li,
-  [data-baseweb="option"] {
+  
+  /* Each option item */
+  [role="option"],
+  li[role="option"] {
     background: #ffffff !important;
     color: #1a2035 !important;
   }
-  [data-baseweb="option"]:hover {
+  
+  /* Hover state */
+  [role="option"]:hover,
+  li[role="option"]:hover {
     background: #f0fdf8 !important;
     color: #1a2035 !important;
   }
-
+  
+  /* Active / currently-highlighted option (keyboard nav) */
+  [aria-selected="true"][role="option"],
+  li[aria-selected="true"] {
+    background: #e6faf3 !important;
+    color: #0ea875 !important;
+    font-weight: 600 !important;
+  }
+  
+  /* The text node inside the option */
+  [role="option"] span,
+  [role="option"] div,
+  li[role="option"] span {
+    color: inherit !important;
+  }
   /* Number input +/- buttons */
   .stNumberInput [data-testid="stNumberInputField"] {
     background: #ffffff !important;
@@ -519,7 +541,7 @@ with tab_dash:
             df = pd.DataFrame(rows)
             st.dataframe(
                 df,
-                use_container_width=True,
+                width='content',
                 hide_index=True,
                 height=420,
                 column_config={
