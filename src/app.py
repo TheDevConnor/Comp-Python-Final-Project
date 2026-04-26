@@ -13,9 +13,12 @@ from tools.compute_dosage import compute_dosage
 from tools.find_optimal_location import find_optimal_location
 from data.hospitals import HOSPITALS, PHARMACIES, ALL_FACILITIES, DRUG_FORMULARY
 from rag.knowledge_base import build_or_load_vectorstore
+from components.location_search_components import render_location_search, get_custom_facilities
+from components.location_search_components import render_location_search, get_custom_facilities
+
 
 st.set_page_config(
-    page_title="SNAP – Medical Distribution Intelligence",
+    page_title="SNAP - Medical Distribution Intelligence",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -387,6 +390,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+custom_facilities = get_custom_facilities()
+PHARMACY_TYPES = {"walgreens", "cvs", "walmart", "other"}
+custom_hospitals  = [f for f in custom_facilities if f["type"] == "hospital"]
+custom_pharmacies = [f for f in custom_facilities if f["type"] in PHARMACY_TYPES]
+
 with st.sidebar:
     st.markdown('<span class="snap-logo">SNAP</span>', unsafe_allow_html=True)
     st.markdown('<div class="snap-tagline">Medical Distribution Intelligence</div>', unsafe_allow_html=True)
@@ -399,10 +407,11 @@ with st.sidebar:
     st.caption(f"Current: **{max_radius} km**")
 
     st.markdown('<div class="sidebar-section">Hospitals</div>', unsafe_allow_html=True)
+    all_hospital_options = [h["name"] for h in HOSPITALS] + [h["name"] for h in custom_hospitals]
     selected_hospitals = st.multiselect(
         "Active Hospitals",
-        options=[h["name"] for h in HOSPITALS],
-        default=[h["name"] for h in HOSPITALS],
+        options=all_hospital_options,
+        default=all_hospital_options,
         label_visibility="collapsed",
     )
 
@@ -411,23 +420,61 @@ with st.sidebar:
     include_cvs       = st.checkbox("CVS (5)", value=True)
     include_walmart   = st.checkbox("Walmart Pharmacy (5)", value=True)
 
-active_hospitals = [h for h in HOSPITALS if h["name"] in selected_hospitals]
-active_pharmacies = [
-    p for p in PHARMACIES
+    if custom_pharmacies:
+      st.markdown(
+        '<div style="font-size:0.68rem;color:#4a5a7a;margin:0.5rem 0 0.25rem;'
+        'text-transform:uppercase;letter-spacing:0.08em">Custom Pharmacies</div>',
+        unsafe_allow_html=True,
+      )
+      selected_custom_pharmacies = st.multiselect(
+        "Custom Pharmacies",
+        options=[p["name"] for p in custom_pharmacies],
+        default=[p["name"] for p in custom_pharmacies],
+        label_visibility="collapsed",
+      )
+    else:
+      selected_custom_pharmacies = []
+
+    render_location_search()
+
+active_hospitals = ([
+    h for h in HOSPITALS
+    if h["name"] in selected_hospitals] + [h for h in custom_hospitals if h["name"] in selected_hospitals])
+active_pharmacies = (
+    [p for p in PHARMACIES 
     if (p["type"] == "walgreens" and include_walgreens)
     or (p["type"] == "cvs"      and include_cvs)
-    or (p["type"] == "walmart"  and include_walmart)
-]
+    or (p["type"] == "walmart"  and include_walmart)] + [p for p in custom_pharmacies if p["name"] in selected_custom_pharmacies]
+)
+custom_facilities = get_custom_facilities()
 active_facilities = active_hospitals + active_pharmacies
 
 @st.cache_data(show_spinner=False)
-def compute_location(facility_names: tuple, radius: float):
-    facilities = [f for f in ALL_FACILITIES if f["name"] in facility_names]
+def compute_location(static_names: tuple, radius: float, custom_json: str):
+    import json as _json
+    from data.hospitals import ALL_FACILITIES as _ALL
+ 
+    static = [f for f in _ALL if f["name"] in static_names]
+ 
+    custom = _json.loads(custom_json) if custom_json else []
+ 
+    facilities = static + custom
     if not facilities:
         return None
     return find_optimal_location(facilities, max_radius_km=radius)
 
-loc_result = compute_location(tuple(f["name"] for f in active_facilities), max_radius)
+import json as _json
+ 
+loc_result = compute_location(
+    static_names=tuple(
+        f["name"] for f in active_facilities if not f.get("custom")
+    ),
+    radius=max_radius,
+    custom_json=_json.dumps(
+        [f for f in active_facilities if f.get("custom")],
+        sort_keys=True,
+    ),
+)
 tab_dash, tab_dosage, tab_agent = st.tabs(["Distribution Map", "Dosage Calculator", "AI Agent"])
 
 with tab_dash:
@@ -648,7 +695,6 @@ with tab_agent:
 
         st.markdown("")
 
-        # Chat history
         for i, msg in enumerate(st.session_state.messages):
             if msg["role"] == "user":
                 st.markdown(f'<div class="chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
@@ -679,7 +725,7 @@ with tab_agent:
                 try:
                     from agent.snap_agent import run_agent
                     history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
-                    response = run_agent(user_input, chat_history=history, api_key=api_key)
+                    response = run_agent(user_input, chat_history=history, api_key=api_key, extra_facilities=get_custom_facilities())
                     answer   = response["output"]
                     steps    = response["intermediate_steps"]
                     msg_idx  = len(st.session_state.messages)
