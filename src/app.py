@@ -718,8 +718,9 @@ with tab_agent:
         with st.spinner("Agent thinking…"):
             try:
                 from agent.snap_agent import run_agent
+                groq_api_key = st.secrets.get("GROQ_API_KEY", "")
                 history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
-                response = run_agent(user_input, chat_history=history, extra_facilities=get_custom_facilities())
+                response = run_agent(user_input, chat_history=history, groq_api_key=groq_api_key, extra_facilities=get_custom_facilities())
                 answer   = response["output"]
                 steps    = response["intermediate_steps"]
                 msg_idx  = len(st.session_state.messages)

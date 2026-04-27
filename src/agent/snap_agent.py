@@ -100,18 +100,18 @@ def _build_system_prompt(extra_facilities: list[dict] | None = None) -> str:
         "daily dose volume among retail pharmacies.\n"
     )
 
-def build_agent(extra_facilities: list[dict] | None = None):
+def build_agent(groq_api_key: str = "", extra_facilities: list[dict] | None = None):
     """
-    Build a LangGraph ReAct agent backed by a local Ollama model (no API key needed).
+    Build a LangGraph ReAct agent backed by Groq (free tier, no credit card needed).
 
     Parameters
     ----------
+    groq_api_key     : Groq API key, passed in from st.secrets in app.py.
     extra_facilities : Custom facilities added by the user via the location search UI.
     """
-
     llm = ChatGroq(
         model="llama-3.1-8b-instant",
-        api_key=st.secrets["GROQ_API_KEY"],
+        api_key=groq_api_key,
         temperature=0.2,
     )
 
@@ -164,6 +164,7 @@ def build_agent(extra_facilities: list[dict] | None = None):
 def run_agent(
     user_input: str,
     chat_history: list | None = None,
+    groq_api_key: str = "",
     extra_facilities: list[dict] | None = None,
 ) -> dict:
     """
@@ -173,13 +174,14 @@ def run_agent(
     ----------
     user_input       : The latest message from the user.
     chat_history     : Previous turns as [{"role": "user"|"assistant", "content": "..."}].
+    groq_api_key     : Groq API key, passed in from app.py.
     extra_facilities : Custom facilities from get_custom_facilities() in the Streamlit session.
 
     Returns
     -------
     {"output": str, "intermediate_steps": list[dict]}
     """
-    agent = build_agent(extra_facilities=extra_facilities or [])
+    agent = build_agent(groq_api_key=groq_api_key, extra_facilities=extra_facilities or [])
 
     messages = []
     for msg in (chat_history or []):
