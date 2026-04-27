@@ -670,7 +670,7 @@ with tab_dosage:
 
 with tab_agent:
     st.markdown('<div class="page-title">SNAP AI Agent</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">LangChain · llama3.1 (Ollama) · RAG · Tool-Calling</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">LangChain · llama-3.3-70b-versatile (Ollama) · RAG · Tool-Calling</div>', unsafe_allow_html=True)
 
     if "messages"    not in st.session_state: st.session_state.messages    = []
     if "agent_steps" not in st.session_state: st.session_state.agent_steps = {}

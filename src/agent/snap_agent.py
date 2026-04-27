@@ -110,7 +110,7 @@ def build_agent(groq_api_key: str = "", extra_facilities: list[dict] | None = No
     extra_facilities : Custom facilities added by the user via the location search UI.
     """
     llm = ChatGroq(
-        model="llama-3.1-8b-instant",
+        model="llama-3.3-70b-versatile",
         api_key=groq_api_key,
         temperature=0.2,
     )
