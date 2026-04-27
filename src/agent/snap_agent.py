@@ -1,8 +1,7 @@
 import json
-import os
 from typing import Optional
 
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_groq import ChatGroq
 from langgraph.prebuilt import create_react_agent      
 from langchain_core.tools import StructuredTool
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -44,10 +43,6 @@ def _dosage_tool(weight_kg: float, drug_mg_per_kg: float, max_dose_mg: float) ->
         return f"Error: {e}"
 
 def _make_location_tool(extra_facilities: list[dict] | None = None):
-    """
-    Returns a closure that includes any user-added custom facilities
-    alongside the static ALL_FACILITIES list.
-    """
     def _location_tool(
         hospital_names: Optional[list[str]] = None,
         max_radius_km: Optional[float] = None,
@@ -105,21 +100,18 @@ def _build_system_prompt(extra_facilities: list[dict] | None = None) -> str:
         "daily dose volume among retail pharmacies.\n"
     )
 
-def build_agent(api_key: Optional[str] = None, extra_facilities: list[dict] | None = None):
+def build_agent(extra_facilities: list[dict] | None = None):
     """
-    Build a LangGraph ReAct agent.
+    Build a LangGraph ReAct agent backed by a local Ollama model (no API key needed).
 
     Parameters
     ----------
-    api_key          : Google Gemini API key (falls back to GOOGLE_API_KEY env var).
     extra_facilities : Custom facilities added by the user via the location search UI.
-                       Passed in from app.py as get_custom_facilities().
     """
-    key = api_key or os.environ.get("GOOGLE_API_KEY", "")
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        google_api_key=key,
+    llm = ChatGroq(
+        model="llama-3.1-8b-instant",
+        api_key=st.secrets["GROQ_API_KEY"],
         temperature=0.2,
     )
 
@@ -172,7 +164,6 @@ def build_agent(api_key: Optional[str] = None, extra_facilities: list[dict] | No
 def run_agent(
     user_input: str,
     chat_history: list | None = None,
-    api_key: str | None = None,
     extra_facilities: list[dict] | None = None,
 ) -> dict:
     """
@@ -182,14 +173,13 @@ def run_agent(
     ----------
     user_input       : The latest message from the user.
     chat_history     : Previous turns as [{"role": "user"|"assistant", "content": "..."}].
-    api_key          : Gemini API key.
     extra_facilities : Custom facilities from get_custom_facilities() in the Streamlit session.
 
     Returns
     -------
     {"output": str, "intermediate_steps": list[dict]}
     """
-    agent = build_agent(api_key=api_key, extra_facilities=extra_facilities or [])
+    agent = build_agent(extra_facilities=extra_facilities or [])
 
     messages = []
     for msg in (chat_history or []):

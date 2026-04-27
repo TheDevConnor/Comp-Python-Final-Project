@@ -399,9 +399,6 @@ with st.sidebar:
     st.markdown('<span class="snap-logo">SNAP</span>', unsafe_allow_html=True)
     st.markdown('<div class="snap-tagline">Medical Distribution Intelligence</div>', unsafe_allow_html=True)
 
-    st.markdown('<div class="sidebar-section">API Key</div>', unsafe_allow_html=True)
-    api_key = st.text_input("Google Gemini API Key", type="password", placeholder="AIza...", label_visibility="collapsed")
-
     st.markdown('<div class="sidebar-section">Service Radius</div>', unsafe_allow_html=True)
     max_radius = st.slider("Max Radius (km)", min_value=10, max_value=200, value=80, step=5, label_visibility="collapsed")
     st.caption(f"Current: **{max_radius} km**")
@@ -673,65 +670,62 @@ with tab_dosage:
 
 with tab_agent:
     st.markdown('<div class="page-title">SNAP AI Agent</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">LangChain · gemini-2.0-flash · RAG · Tool-Calling</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-sub">LangChain · llama3.1 (Ollama) · RAG · Tool-Calling</div>', unsafe_allow_html=True)
 
-    if not api_key:
-        st.info("Enter your Google Gemini API key in the sidebar to activate the AI agent.")
-    else:
-        if "messages"    not in st.session_state: st.session_state.messages    = []
-        if "agent_steps" not in st.session_state: st.session_state.agent_steps = {}
+    if "messages"    not in st.session_state: st.session_state.messages    = []
+    if "agent_steps" not in st.session_state: st.session_state.agent_steps = {}
 
-        st.markdown('<div class="section-label">Suggested Queries</div>', unsafe_allow_html=True)
-        suggestions = [
-            "Where should we place the distribution center for all South Florida hospitals?",
-            "Calculate the morphine dose for a 55 kg patient.",
-            "What are the cold chain requirements for insulin distribution?",
-        ]
-        sc1, sc2, sc3 = st.columns(3)
-        for col, sug in zip([sc1, sc2, sc3], suggestions):
-            with col:
-                if st.button(sug, key=f"sug_{sug[:20]}"):
-                    st.session_state.pending_input = sug
+    st.markdown('<div class="section-label">Suggested Queries</div>', unsafe_allow_html=True)
+    suggestions = [
+        "Where should we place the distribution center for all South Florida hospitals?",
+        "Calculate the morphine dose for a 55 kg patient.",
+        "What are the cold chain requirements for insulin distribution?",
+    ]
+    sc1, sc2, sc3 = st.columns(3)
+    for col, sug in zip([sc1, sc2, sc3], suggestions):
+        with col:
+            if st.button(sug, key=f"sug_{sug[:20]}"):
+                st.session_state.pending_input = sug
 
-        st.markdown("")
+    st.markdown("")
 
-        for i, msg in enumerate(st.session_state.messages):
-            if msg["role"] == "user":
-                st.markdown(f'<div class="chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
-            else:
-                st.markdown(f'<div class="chat-agent">{msg["content"]}</div>', unsafe_allow_html=True)
-                steps = st.session_state.agent_steps.get(i, [])
-                if steps:
-                    with st.expander(f"🔧 {len(steps)} tool call(s)"):
-                        for step in steps:
-                            st.markdown(
-                                f'<div class="tool-call-box">'
-                                f'▶ <strong>{step["tool"]}</strong><br>'
-                                f'Input: {json.dumps(step["tool_input"], indent=2)}<br>'
-                                f'Result: {str(step["result"])[:300]}{"..." if len(str(step["result"])) > 300 else ""}'
-                                f'</div>',
-                                unsafe_allow_html=True,
-                            )
+    for i, msg in enumerate(st.session_state.messages):
+        if msg["role"] == "user":
+            st.markdown(f'<div class="chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="chat-agent">{msg["content"]}</div>', unsafe_allow_html=True)
+            steps = st.session_state.agent_steps.get(i, [])
+            if steps:
+                with st.expander(f"🔧 {len(steps)} tool call(s)"):
+                    for step in steps:
+                        st.markdown(
+                            f'<div class="tool-call-box">'
+                            f'▶ <strong>{step["tool"]}</strong><br>'
+                            f'Input: {json.dumps(step["tool_input"], indent=2)}<br>'
+                            f'Result: {str(step["result"])[:300]}{"..." if len(str(step["result"])) > 300 else ""}'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
 
-        user_input = st.chat_input("Ask about distribution logistics, dosages, or hospital coverage…")
+    user_input = st.chat_input("Ask about distribution logistics, dosages, or hospital coverage…")
 
-        if "pending_input" in st.session_state:
-            user_input = st.session_state.pop("pending_input")
+    if "pending_input" in st.session_state:
+        user_input = st.session_state.pop("pending_input")
 
-        if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input})
+    if user_input:
+        st.session_state.messages.append({"role": "user", "content": user_input})
 
-            with st.spinner("Agent thinking…"):
-                try:
-                    from agent.snap_agent import run_agent
-                    history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
-                    response = run_agent(user_input, chat_history=history, api_key=api_key, extra_facilities=get_custom_facilities())
-                    answer   = response["output"]
-                    steps    = response["intermediate_steps"]
-                    msg_idx  = len(st.session_state.messages)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-                    st.session_state.agent_steps[msg_idx] = steps
-                except Exception as e:
-                    st.session_state.messages.append({"role": "assistant", "content": f"Agent error: {e}"})
+        with st.spinner("Agent thinking…"):
+            try:
+                from agent.snap_agent import run_agent
+                history = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages[:-1]]
+                response = run_agent(user_input, chat_history=history, extra_facilities=get_custom_facilities())
+                answer   = response["output"]
+                steps    = response["intermediate_steps"]
+                msg_idx  = len(st.session_state.messages)
+                st.session_state.messages.append({"role": "assistant", "content": answer})
+                st.session_state.agent_steps[msg_idx] = steps
+            except Exception as e:
+                st.session_state.messages.append({"role": "assistant", "content": f"Agent error: {e}"})
 
-            st.rerun()
+        st.rerun()
